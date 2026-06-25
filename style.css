@@ -1,0 +1,87 @@
+/* ---------- Basic page setup ---------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0f0f14;
+  color: #f1f1f1;
+  font-family: "Segoe UI", Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ---------- Header ---------- */
+header {
+  text-align: center;
+  margin-top: 40px;
+  margin-bottom: 20px;
+}
+
+header h1 {
+  font-size: 2.2rem;
+  letter-spacing: 1px;
+  /* A little gradient text to keep things modern */
+  background: linear-gradient(90deg, #7f5af0, #2cb67d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.subtitle {
+  color: #a0a0a8;
+  margin-top: 6px;
+  font-size: 0.95rem;
+}
+
+/* ---------- Video container ---------- */
+main {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  flex: 1;
+  padding: 20px;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 16 / 9;
+  background-color: #1a1a22;
+  border: 1px solid #2a2a35;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* The webcam video fills the container */
+#webcam {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Mirror the video so it feels natural, like a mirror */
+  transform: scaleX(-1);
+}
+
+/* ---------- Error message ---------- */
+.error-message {
+  position: absolute;
+  text-align: center;
+  padding: 20px;
+  color: #ff8787;
+  font-size: 1rem;
+  max-width: 80%;
+}
+
+.hidden {
+  display: none;
+}

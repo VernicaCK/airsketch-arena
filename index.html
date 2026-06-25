@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AirSketch Arena - Milestone 1</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>AirSketch Arena</h1>
+    <p class="subtitle">Milestone 1: Webcam Feed</p>
+  </header>
+
+  <main>
+    <!-- This box holds the video and any error message -->
+    <div class="video-container">
+      <video id="webcam" autoplay playsinline></video>
+
+      <!-- Hidden by default, shown only if camera access fails -->
+      <p id="error-message" class="error-message hidden">
+        ⚠️ Camera access was denied or is unavailable. Please allow camera
+        permission and refresh the page.
+      </p>
+    </div>
+  </main>
+
+  <!-- Our JavaScript logic lives in a separate file -->
+  <script src="script.js"></script>
+</body>
+</html>
