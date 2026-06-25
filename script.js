@@ -22,30 +22,135 @@ hands.setOptions({
 // Whenever MediaPipe finishes analyzing a frame, this function runs
 hands.onResults(onResults);
 
+// This keeps track of the fingertip's last DRAWN position.
+// null means "we weren't drawing last frame" (hand missing or finger folded).
+let lastPoint = null;
+
+// This keeps track of the last SMOOTHED position, used to reduce jitter.
+// It's separate from lastPoint because we still want to smooth even
+// across frames where we're not actively drawing a line.
+let smoothedPoint = null;
+
+// A short history of recent smoothed points. We use this to draw
+// curves instead of straight segments, which makes the line look
+// noticeably smoother without adding any extra delay.
+let recentPoints = [];
+
+// How much we trust the new raw position vs. the previous smoothed one.
+// Lower = smoother but more "lag". Higher = snappier but more jittery.
+// 0.4 is a sweet spot: enough smoothing to remove jitter, while still
+// feeling responsive (no noticeable delay between moving and drawing).
+const SMOOTHING_FACTOR = 0.4;
+
+// Fixed visual style for the stroke, defined once so every segment
+// we draw looks identical (consistent thickness, clean rounded ends).
+const STROKE_COLOR = "#2cb67d"; // theme green
+const STROKE_WIDTH = 4;
+
+// ---------- Helper: midpoint between two points ----------
+function midpoint(a, b) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+// ---------- Helper: is the index finger extended (straight)? ----------
+// We compare two distances from the wrist (landmark 0):
+//   - distance to the index FINGERTIP (landmark 8)
+//   - distance to the index finger's MIDDLE joint, the PIP (landmark 6)
+// When the finger is straight, the tip is much farther from the wrist
+// than the middle joint is. When the finger is folded/bent, the tip
+// curls back in and ends up close to (or even closer than) the middle
+// joint. Using distance-from-wrist (instead of just comparing Y values)
+// means this still works even if the hand is tilted or rotated.
+function isIndexFingerExtended(landmarks) {
+  const wrist = landmarks[0];
+  const pip = landmarks[6]; // middle joint of the index finger
+  const tip = landmarks[8]; // index fingertip
+
+  const distance = (a, b) =>
+    Math.hypot(a.x - b.x, a.y - b.y); // simple straight-line distance
+
+  const wristToTip = distance(wrist, tip);
+  const wristToPip = distance(wrist, pip);
+
+  // If the tip is noticeably farther from the wrist than the middle
+  // joint is, we consider the finger "extended". The 1.2x margin avoids
+  // false positives from small natural hand wobble.
+  return wristToTip > wristToPip * 1.2;
+}
+
 // ---------- Step 2: Draw the results on the canvas ----------
 function onResults(results) {
-  // Make sure the canvas is the same size as the video
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  // Note: we no longer clear or resize the canvas here.
+  // Resizing/clearing every frame would erase the drawing we've
+  // already made, so canvas setup now happens once in startDetectionLoop().
 
-  // Clear the previous frame's drawing
-  canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+  const handFound =
+    results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
 
-  // If MediaPipe found at least one hand, draw its landmarks
-  if (results.multiHandLandmarks) {
-    for (const landmarks of results.multiHandLandmarks) {
-      // Draws the lines connecting the 21 landmarks (the "hand skeleton")
-      drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-        color: "#2cb67d",
-        lineWidth: 3,
-      });
-      // Draws each of the 21 landmark points as small dots
-      drawLandmarks(canvasCtx, landmarks, {
-        color: "#7f5af0",
-        lineWidth: 1,
-        radius: 4,
-      });
+  if (handFound) {
+    const landmarks = results.multiHandLandmarks[0];
+    const indexFingertip = landmarks[8];
+
+    // Landmark coordinates are normalized (0 to 1), so we multiply
+    // by the canvas size to get the actual pixel position.
+    const rawX = indexFingertip.x * canvas.width;
+    const rawY = indexFingertip.y * canvas.height;
+
+    // ---- Step A: Smoothing (exponential smoothing) ----
+    // Instead of jumping straight to the new raw position, we move
+    // partway from the last smoothed position toward it. This removes
+    // small jittery movements while still tracking the real motion
+    // closely, so there's no noticeable lag.
+    if (!smoothedPoint) {
+      smoothedPoint = { x: rawX, y: rawY };
+    } else {
+      smoothedPoint = {
+        x: smoothedPoint.x + (rawX - smoothedPoint.x) * SMOOTHING_FACTOR,
+        y: smoothedPoint.y + (rawY - smoothedPoint.y) * SMOOTHING_FACTOR,
+      };
     }
+
+    // ---- Only draw if the index finger is extended ----
+    if (isIndexFingerExtended(landmarks)) {
+      // Keep a short history of the last 3 smoothed points.
+      recentPoints.push({ x: smoothedPoint.x, y: smoothedPoint.y });
+      if (recentPoints.length > 3) recentPoints.shift();
+
+      // ---- Step B: Curve smoothing ----
+      // With 3 points (older -> middle -> newest), instead of drawing
+      // two sharp straight segments, we draw ONE curve that bends
+      // through the middle point. We do this by drawing a quadratic
+      // curve between the midpoints of each pair, using the middle
+      // point as the curve's "control point". This rounds off sharp
+      // corners and makes the stroke look hand-drawn and smooth,
+      // instead of jagged and segmented.
+      if (recentPoints.length === 3 && lastPoint) {
+        const [p1, p2, p3] = recentPoints;
+        const startMid = midpoint(p1, p2);
+        const endMid = midpoint(p2, p3);
+
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(startMid.x, startMid.y);
+        canvasCtx.quadraticCurveTo(p2.x, p2.y, endMid.x, endMid.y);
+        canvasCtx.strokeStyle = STROKE_COLOR;
+        canvasCtx.lineWidth = STROKE_WIDTH;
+        canvasCtx.lineCap = "round";
+        canvasCtx.lineJoin = "round";
+        canvasCtx.stroke();
+      }
+
+      lastPoint = { x: smoothedPoint.x, y: smoothedPoint.y };
+    } else {
+      // Finger is folded: stop drawing, but keep what's already drawn.
+      lastPoint = null;
+      recentPoints = [];
+    }
+  } else {
+    // No hand detected this frame. Forget all tracked points so that,
+    // when the hand reappears, we don't draw a line across the gap.
+    lastPoint = null;
+    smoothedPoint = null;
+    recentPoints = [];
   }
 }
 
@@ -69,6 +174,12 @@ async function startWebcam() {
 
 // ---------- Step 4: Feed video frames to MediaPipe, frame by frame ----------
 function startDetectionLoop() {
+  // Set the canvas size to match the video, ONCE.
+  // We do this here (not in onResults) so that drawing the line
+  // doesn't get wiped by a resize on every single frame.
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
   // requestAnimationFrame keeps this loop running smoothly,
   // matching the browser's natural refresh rate.
   async function detectFrame() {
