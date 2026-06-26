@@ -15,7 +15,7 @@
 <body>
   <header>
     <h1>AirSketch Arena</h1>
-    <p class="subtitle">Milestone 5: Smooth Air Drawing</p>
+    <p class="subtitle">Resizable Eraser (Locked Sizing)</p>
   </header>
 
   <main>
@@ -27,11 +27,30 @@
            We draw the 21 hand landmarks + connections on it. -->
       <canvas id="overlay"></canvas>
 
+      <!-- This canvas sits ABOVE the drawing canvas and is cleared every
+           frame. It only shows temporary cursor info (like the eraser's
+           circular outline) - it never holds permanent drawing. -->
+      <canvas id="cursor-overlay"></canvas>
+
       <!-- Hidden by default, shown only if camera access fails -->
       <p id="error-message" class="error-message hidden">
         ⚠️ Camera access was denied or is unavailable. Please allow camera
         permission and refresh the page.
       </p>
+
+      <!-- Floating brush toolbar: color swatches, eraser, and clear button -->
+      <div class="toolbar">
+        <button class="color-swatch active" data-color="#2cb67d" style="background:#2cb67d" title="Green"></button>
+        <button class="color-swatch" data-color="#7f5af0" style="background:#7f5af0" title="Purple"></button>
+        <button class="color-swatch" data-color="#ff6b6b" style="background:#ff6b6b" title="Red"></button>
+        <button class="color-swatch" data-color="#ffd166" style="background:#ffd166" title="Yellow"></button>
+        <button class="color-swatch" data-color="#4ea8de" style="background:#4ea8de" title="Blue"></button>
+
+        <span class="toolbar-divider"></span>
+
+        <button id="eraser-btn" class="tool-btn" title="Eraser">🧹</button>
+        <button id="clear-btn" class="tool-btn" title="Clear Canvas">🗑️</button>
+      </div>
     </div>
   </main>
 

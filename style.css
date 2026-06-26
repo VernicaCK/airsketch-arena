@@ -83,6 +83,21 @@ main {
   transform: scaleX(-1);
 }
 
+/* This canvas only shows temporary cursor info (e.g. the eraser
+   outline) and is cleared every frame - it never holds permanent
+   drawing. It sits in the exact same position as #overlay so the
+   coordinates line up. pointer-events:none lets clicks pass through
+   to the toolbar/buttons underneath/above it. */
+#cursor-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
 /* ---------- Error message ---------- */
 .error-message {
   position: absolute;
@@ -95,4 +110,77 @@ main {
 
 .hidden {
   display: none;
+}
+
+/* ---------- Floating brush toolbar (glassmorphism) ---------- */
+.toolbar {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+
+  /* Glassmorphism: translucent background + blur + soft border */
+  background: rgba(26, 26, 34, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+
+  z-index: 10; /* sit above the video + drawing canvas */
+}
+
+/* Each color swatch is a small round button */
+.color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 0;
+}
+
+/* The currently selected color gets a bright ring around it */
+.color-swatch.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+/* Thin separator between the colors and the tool buttons */
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Eraser + Clear buttons */
+.tool-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Highlight the eraser button while it's the active tool */
+.tool-btn.active {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #ffffff;
+}
+
+/* Shown while the index fingertip is hovering over a button,
+   counting down toward auto-activation. Plain static highlight -
+   no animation, just a brighter glow so it's easy to notice. */
+.color-swatch.finger-hover,
+.tool-btn.finger-hover {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
 }
